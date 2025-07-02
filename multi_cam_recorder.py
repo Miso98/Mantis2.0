@@ -204,7 +204,10 @@ def stop_recording():
 def logitech_camera_thread():
     global logitech_cam, logitech_out, is_recording
     found_camera = False
-    for i in range(10):  # Try indices from 0 to 9
+    # Try specific index /dev/video6 first, then iterate
+    indices_to_try = [6] + [i for i in range(10) if i != 6] # Try 6 first, then 0-5, 7-9
+    for i in indices_to_try:
+        print(f"Attempting to open Logitech camera at index {i}...")
         logitech_cam = cv2.VideoCapture(i)
         if logitech_cam.isOpened():
             print(f"Logitech camera opened successfully at index {i}.")
