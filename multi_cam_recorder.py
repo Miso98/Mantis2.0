@@ -1,3 +1,4 @@
+import json
 import cv2
 import tkinter as tk
 from tkinter import ttk
@@ -8,6 +9,12 @@ from datetime import datetime
 from pyorbbecsdk import *
 import numpy as np
 from functools import partial
+
+# Load configuration
+with open('/home/kaliber/multi-cam-stream/multi_device_sync_config.json', 'r') as f:
+    config = json.load(f)
+
+recordings_dir = config.get('recordings_directory', '/home/kaliber/multi-cam-stream/recordings')
 
 # Global variables
 is_recording = False
@@ -157,7 +164,6 @@ def start_recording():
     global is_recording, logitech_out, orbbec_rgb_out, orbbec_ir_out, orbbec_depth_out
     if not is_recording:
         # Create recordings directory if it doesn't exist
-        recordings_dir = '/home/kaliber/multi-cam-stream/recordings'
         if not os.path.exists(recordings_dir):
             os.makedirs(recordings_dir)
 
@@ -197,7 +203,7 @@ def stop_recording():
 
 def logitech_camera_thread():
     global logitech_cam, logitech_out, is_recording
-    logitech_cam = cv2.VideoCapture(0)
+    logitech_cam = cv2.VideoCapture(1)
     if not logitech_cam.isOpened():
         print("Failed to open Logitech camera.")
         return

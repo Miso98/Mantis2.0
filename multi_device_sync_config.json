@@ -1,4 +1,5 @@
 {
+    "recordings_directory": "/home/kaliber/multi-cam-stream/recordings",
     "devices": [
         {
             "serial_number": "CL838420074",
