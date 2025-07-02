@@ -6,7 +6,7 @@ This repository contains utility functions for processing and visualizing multi-
 
 Install the following python packages before using the utilities 
 
-'''bash
+```bash
 pip install numpy matplotlib opencv-python
-
+```
 Also important to clone these python bindings provided by Orbbec and use the main branch for version 1 if using an Orbbec Astra https://github.com/orbbec/pyorbbecsdk
