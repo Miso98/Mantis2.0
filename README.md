@@ -1,5 +1,5 @@
 # Mantis 2.0
-This repository contains utility functions for processing and visualizing multi-camera and multi-sensor tracking data. Specifically, it includes funcitonality for using the Orbbec Astra's Depth, IR, and RGBD feed and synchronizing those output streams with another USB camera that outputs RGBD.
+This repository contains utility functions for processing and visualizing multi-camera and multi-sensor tracking data. Specifically, it includes funcitonality for using the Orbbec Astra 2's Depth, IR, and RGBD feed and synchronizing those output streams with another USB camera that outputs RGBD.
 
 
 ## Dependencies
