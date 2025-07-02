@@ -110,7 +110,27 @@ def process_ir(ir_frame):
     ir_data = ir_data.astype(data_type)
     return cv2.cvtColor(ir_data, cv2.COLOR_GRAY2RGB)
 
-def find_logitech_camera_index():    try:        result = subprocess.run(['v4l2-ctl', '--list-devices'], capture_output=True, text=True, check=True)        output = result.stdout                # Regex to find the Logitech camera and its associated video devices        # We are looking for "UVC Camera (046d:0825)" followed by device paths        logitech_pattern = r"UVC Camera \(046d:0825\).*?(?P<devices>(?:\\s+/dev/video\\d+\\n)*)"        match = re.search(logitech_pattern, output, re.DOTALL)                if match:            devices_str = match.group('devices')            video_devices = re.findall(r"/dev/video(\d+)", devices_str)            if video_devices:                # Return the first found video index                return int(video_devices[0])    except (subprocess.CalledProcessError, FileNotFoundError) as e:        print(f"Error running v4l2-ctl: {e}")    return -1 # Return -1 if not found or error# --- GUI Setup ---
+def find_logitech_camera_index():
+    try:
+        result = subprocess.run(['v4l2-ctl', '--list-devices'], capture_output=True, text=True, check=True)
+        output = result.stdout
+        
+        # Regex to find the Logitech camera and its associated video devices
+        # We are looking for "UVC Camera (046d:0825)" followed by device paths
+        logitech_pattern = r"UVC Camera \(046d:0825\).*?(?P<devices>(?:\\s+/dev/video\\d+\\n)*)"
+        match = re.search(logitech_pattern, output, re.DOTALL)
+        
+        if match:
+            devices_str = match.group('devices')
+            video_devices = re.findall(r"/dev/video(\d+)", devices_str)
+            if video_devices:
+                # Return the first found video index
+                return int(video_devices[0])
+    except (subprocess.CalledProcessError, FileNotFoundError) as e:
+        print(f"Error running v4l2-ctl: {e}")
+    return -1 # Return -1 if not found or error
+
+# --- GUI Setup ---
 root = tk.Tk()
 root.title("Multi-camera Recorder")
 root.geometry("1920x1080") # Increased size for multiple previews
