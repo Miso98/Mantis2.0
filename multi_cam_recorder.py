@@ -9,6 +9,8 @@ from datetime import datetime
 from pyorbbecsdk import *
 import numpy as np
 from functools import partial
+import subprocess
+import re
 
 # Load configuration
 with open('/home/kaliber/multi-cam-stream/multi_device_sync_config.json', 'r') as f:
@@ -108,7 +110,7 @@ def process_ir(ir_frame):
     ir_data = ir_data.astype(data_type)
     return cv2.cvtColor(ir_data, cv2.COLOR_GRAY2RGB)
 
-# --- GUI Setup ---
+def find_logitech_camera_index():    try:        result = subprocess.run(['v4l2-ctl', '--list-devices'], capture_output=True, text=True, check=True)        output = result.stdout                # Regex to find the Logitech camera and its associated video devices        # We are looking for "UVC Camera (046d:0825)" followed by device paths        logitech_pattern = r"UVC Camera \(046d:0825\).*?(?P<devices>(?:\\s+/dev/video\\d+\\n)*)"        match = re.search(logitech_pattern, output, re.DOTALL)                if match:            devices_str = match.group('devices')            video_devices = re.findall(r"/dev/video(\d+)", devices_str)            if video_devices:                # Return the first found video index                return int(video_devices[0])    except (subprocess.CalledProcessError, FileNotFoundError) as e:        print(f"Error running v4l2-ctl: {e}")    return -1 # Return -1 if not found or error# --- GUI Setup ---
 root = tk.Tk()
 root.title("Multi-camera Recorder")
 root.geometry("1920x1080") # Increased size for multiple previews
@@ -204,8 +206,13 @@ def stop_recording():
 def logitech_camera_thread():
     global logitech_cam, logitech_out, is_recording
     found_camera = False
-    # Try specific index /dev/video6 first, then iterate
-    indices_to_try = [6] + [i for i in range(10) if i != 6] # Try 6 first, then 0-5, 7-9
+    
+    camera_index = find_logitech_camera_index()
+    if camera_index != -1:
+        indices_to_try = [camera_index] + [i for i in range(10) if i != camera_index]
+    else:
+        indices_to_try = range(10) # Fallback to all indices if not found by ID
+
     for i in indices_to_try:
         print(f"Attempting to open Logitech camera at index {i}...")
         logitech_cam = cv2.VideoCapture(i)
