@@ -41,11 +41,14 @@ orbbec_pipeline = None
 # --- Utility Functions (adapted from pyorbbecsdk examples) ---
 def frame_to_bgr_image(frame):
     if frame is None:
+        print("frame_to_bgr_image: Input frame is None.")
         return None
     width = frame.get_width()
     height = frame.get_height()
     frame_format = frame.get_format()
     data = np.asanyarray(frame.get_data())
+
+    print(f"frame_to_bgr_image: Processing format {frame_format.name} (value: {frame_format.value}), width: {width}, height: {height}, data shape: {data.shape}")
 
     if frame_format == OBFormat.RGB:
         data = data.reshape((height, width, 3))
@@ -67,18 +70,25 @@ def frame_to_bgr_image(frame):
         return image
     else:
         # Fallback for other formats, might need more specific handling
-        print(f"Unsupported frame format in frame_to_bgr_image: {frame_format}")
+        print(f"frame_to_bgr_image: Unsupported frame format: {frame_format.name} (value: {frame_format.value})")
         return None
 
 def process_depth(frame):
     if not frame:
+        print("process_depth: Input frame is None.")
         return None
     try:
         depth_data = np.frombuffer(frame.get_data(), dtype=np.uint16)
+        print(f"process_depth: Raw data buffer size: {len(frame.get_data())} bytes, expected elements: {frame.get_height() * frame.get_width()}")
         depth_data = depth_data.reshape(frame.get_height(), frame.get_width())
         depth_image = cv2.normalize(depth_data, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
         return cv2.applyColorMap(depth_image, cv2.COLORMAP_JET)
-    except ValueError:
+    except ValueError as e:
+        print(f"process_depth: ValueError during reshape or frombuffer: {e}")
+        print(f"process_depth: Frame width: {frame.get_width()}, height: {frame.get_height()}, format: {frame.get_format().name}")
+        return None
+    except Exception as e:
+        print(f"process_depth: Unexpected error: {e}")
         return None
 
 def process_ir(ir_frame):
@@ -329,6 +339,7 @@ def orbbec_camera_thread():
                 if color_frame:
                     frame_bgr = frame_to_bgr_image(color_frame)
                     if frame_bgr is not None:
+                        print(f"Orbbec RGB: Frame received and processed. Shape: {frame_bgr.shape}")
                         resized_frame_bgr = cv2.resize(frame_bgr, (640, 480))
                         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
                         cv2.putText(resized_frame_bgr, timestamp, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
@@ -338,12 +349,17 @@ def orbbec_camera_thread():
                         root.after(1, partial(update_label, orbbec_rgb_label, imgtk))
                         if is_recording and orbbec_rgb_out:
                             orbbec_rgb_out.write(resized_frame_bgr)
+                    else:
+                        print("Orbbec RGB: frame_to_bgr_image returned None.")
+                else:
+                    print("Orbbec RGB: No color frame received.")
 
                 # IR Frame (for preview and recording)
                 ir_frame = frames.get_ir_frame()
                 if ir_frame:
                     ir_image = process_ir(ir_frame)
                     if ir_image is not None:
+                        print(f"Orbbec IR: Frame received and processed. Shape: {ir_image.shape}")
                         resized_ir_image = cv2.resize(ir_image, (640, 480))
                         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
                         cv2.putText(resized_ir_image, timestamp, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
@@ -357,12 +373,17 @@ def orbbec_camera_thread():
                                 orbbec_ir_out.write(gray_frame)
                             else:
                                 orbbec_ir_out.write(resized_ir_image)
+                    else:
+                        print("Orbbec IR: process_ir returned None.")
+                else:
+                    print("Orbbec IR: No IR frame received.")
 
                 # Depth Frame (for preview and recording)
                 depth_frame = frames.get_depth_frame()
                 if depth_frame:
                     depth_image = process_depth(depth_frame)
                     if depth_image is not None:
+                        print(f"Orbbec Depth: Frame received and processed. Shape: {depth_image.shape}")
                         resized_depth_image = cv2.resize(depth_image, (640, 480))
                         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
                         cv2.putText(resized_depth_image, timestamp, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
@@ -376,6 +397,10 @@ def orbbec_camera_thread():
                                 orbbec_depth_out.write(gray_frame)
                             else:
                                 orbbec_depth_out.write(resized_depth_image)
+                    else:
+                        print("Orbbec Depth: process_depth returned None.")
+                else:
+                    print("Orbbec Depth: No depth frame received.")
             else:
                 print("Orbbec camera: No frames received.")
                 time.sleep(0.1) # Avoid busy-waiting
