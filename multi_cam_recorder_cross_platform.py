@@ -78,8 +78,10 @@ def process_depth(frame):
         print("process_depth: Input frame is None.")
         return None
     try:
+        print(f"process_depth: Frame format: {frame.get_format().name} (value: {frame.get_format().value}), width: {frame.get_width()}, height: {frame.get_height()}")
         depth_data = np.frombuffer(frame.get_data(), dtype=np.uint16)
-        print(f"process_depth: Raw data buffer size: {len(frame.get_data())} bytes, expected elements: {frame.get_height() * frame.get_width()}")
+        expected_size = frame.get_width() * frame.get_height() * 2 # 2 bytes per uint16
+        print(f"process_depth: Raw data buffer size: {len(frame.get_data())} bytes, expected elements: {frame.get_height() * frame.get_width()}, expected buffer size: {expected_size}")
         depth_data = depth_data.reshape(frame.get_height(), frame.get_width())
         depth_image = cv2.normalize(depth_data, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
         return cv2.applyColorMap(depth_image, cv2.COLORMAP_JET)
