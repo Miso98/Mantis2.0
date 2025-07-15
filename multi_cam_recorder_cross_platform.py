@@ -48,7 +48,7 @@ def frame_to_bgr_image(frame):
     frame_format = frame.get_format()
     data = np.asanyarray(frame.get_data())
 
-    print(f"frame_to_bgr_image: Processing format {frame_format.name} (value: {frame_format.value}), width: {width}, height: {height}, data shape: {data.shape}")
+    print(f"frame_to_bgr_image: Processing format {frame_format.name} (value: {frame_format.value}), width: {width}, height: {height}, data shape: {data.shape}, data dtype: {data.dtype}")
 
     if frame_format == OBFormat.RGB:
         data = data.reshape((height, width, 3))
@@ -66,7 +66,10 @@ def frame_to_bgr_image(frame):
         image = cv2.cvtColor(data, cv2.COLOR_GRAY2BGR)
         return image
     elif frame_format == OBFormat.MJPG:
+        print(f"frame_to_bgr_image: Attempting cv2.imdecode for MJPG. Data length: {len(data)}, dtype: {data.dtype}")
         image = cv2.imdecode(data, cv2.IMREAD_COLOR)
+        if image is None:
+            print("frame_to_bgr_image: cv2.imdecode returned None for MJPG data.")
         return image
     else:
         # Fallback for other formats, might need more specific handling
@@ -79,7 +82,7 @@ def process_depth(frame):
         return None
     try:
         print(f"process_depth: Frame format: {frame.get_format().name} (value: {frame.get_format().value}), width: {frame.get_width()}, height: {frame.get_height()}")
-        depth_data = np.frombuffer(frame.get_data(), dtype=np.uint16)
+        depth_data = np.frombuffer(frame.get_data(), dtype=np.uint16).copy() # Added .copy()
         expected_size = frame.get_width() * frame.get_height() * 2 # 2 bytes per uint16
         print(f"process_depth: Raw data buffer size: {len(frame.get_data())} bytes, expected elements: {frame.get_height() * frame.get_width()}, expected buffer size: {expected_size}")
         depth_data = depth_data.reshape(frame.get_height(), frame.get_width())
