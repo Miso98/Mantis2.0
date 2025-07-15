@@ -11,12 +11,20 @@ import numpy as np
 from functools import partial
 import subprocess
 import re
+import time # Import time for sleep
 
 # Load configuration
 script_dir = os.path.dirname(__file__)
 config_path = os.path.join(script_dir, 'multi_device_sync_config.json')
-with open(config_path, 'r') as f:
-    config = json.load(f)
+try:
+    with open(config_path, 'r') as f:
+        config = json.load(f)
+except FileNotFoundError:
+    print(f"Error: Configuration file not found at {config_path}")
+    config = {} # Provide a default empty config
+except json.JSONDecodeError:
+    print(f"Error: Could not decode JSON from {config_path}")
+    config = {}
 
 recordings_dir = os.path.join(script_dir, config.get('recordings_directory', 'recordings'))
 
@@ -235,42 +243,52 @@ def logitech_camera_thread():
     else:
         indices_to_try = range(10) # Fallback to all indices if not found by ID
 
-    for i in indices_to_try:
-        print(f"Attempting to open Logitech camera at index {i}...")
-        logitech_cam = cv2.VideoCapture(i)
-        if logitech_cam.isOpened():
-            print(f"Logitech camera opened successfully at index {i}.")
-            found_camera = True
-            break
-        else:
+    try:
+        for i in indices_to_try:
+            print(f"Attempting to open Logitech camera at index {i}...")
+            logitech_cam = cv2.VideoCapture(i)
+            if logitech_cam.isOpened():
+                print(f"Logitech camera opened successfully at index {i}.")
+                found_camera = True
+                break
+            else:
+                logitech_cam.release()
+        
+        if not found_camera:
+            print("Failed to open Logitech camera after trying multiple indices.")
+            return
+
+        while not stop_event.is_set():
+            ret, frame = logitech_cam.read()
+            if ret:
+                # Resize the frame once for both preview and recording
+                resized_frame = cv2.resize(frame, (640, 480))
+
+                # Add timestamp
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+                cv2.putText(resized_frame, timestamp, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+
+                # Preview
+                frame_rgb = cv2.cvtColor(resized_frame, cv2.COLOR_BGR2RGB)
+                img = Image.fromarray(frame_rgb)
+                imgtk = ImageTk.PhotoImage(image=img)
+                # Schedule GUI update on the main thread
+                root.after(1, partial(update_label, logitech_label, imgtk))
+
+                # Recording
+                if is_recording and logitech_out:
+                    logitech_out.write(resized_frame)
+            else:
+                print("Logitech camera: Failed to read frame.")
+                time.sleep(0.1) # Avoid busy-waiting
+        
+    except Exception as e:
+        print(f"Error in Logitech camera thread: {e}")
+    finally:
+        if logitech_cam and logitech_cam.isOpened():
             logitech_cam.release()
-    
-    if not found_camera:
-        print("Failed to open Logitech camera after trying multiple indices.")
-        return
+        print("Logitech camera thread stopped.")
 
-    while not stop_event.is_set():
-        ret, frame = logitech_cam.read()
-        if ret:
-            # Resize the frame once for both preview and recording
-            resized_frame = cv2.resize(frame, (640, 480))
-
-            # Add timestamp
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-            cv2.putText(resized_frame, timestamp, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-
-            # Preview
-            frame_rgb = cv2.cvtColor(resized_frame, cv2.COLOR_BGR2RGB)
-            img = Image.fromarray(frame_rgb)
-            imgtk = ImageTk.PhotoImage(image=img)
-            # Schedule GUI update on the main thread
-            root.after(1, partial(update_label, logitech_label, imgtk))
-
-            # Recording
-            if is_recording and logitech_out:
-                logitech_out.write(resized_frame)
-    
-    logitech_cam.release()
 
 def orbbec_camera_thread():
     global orbbec_pipeline, orbbec_rgb_out, orbbec_ir_out, orbbec_depth_out, is_recording
@@ -301,6 +319,7 @@ def orbbec_camera_thread():
                     # Continue to try other streams even if one fails
 
         orbbec_pipeline.start(config)
+        print("Orbbec pipeline started successfully.")
         
         while not stop_event.is_set():
             frames = orbbec_pipeline.wait_for_frames(100)
@@ -357,18 +376,25 @@ def orbbec_camera_thread():
                                 orbbec_depth_out.write(gray_frame)
                             else:
                                 orbbec_depth_out.write(resized_depth_image)
+            else:
+                print("Orbbec camera: No frames received.")
+                time.sleep(0.1) # Avoid busy-waiting
 
     except OBError as e:
         print(f"Orbbec pipeline error: {e}")
+    except Exception as e:
+        print(f"Unexpected error in Orbbec camera thread: {e}")
     finally:
         if orbbec_pipeline:
             orbbec_pipeline.stop()
+        print("Orbbec camera thread stopped.")
+
 
 def on_closing():
     print("Closing application...")
     stop_event.set()
-    # Wait a moment for threads to see the stop event
-    root.after(100, root.destroy)
+    # Give threads a moment to finish their loops
+    root.after(200, root.destroy)
 
 # --- Button Bindings ---
 start_button = ttk.Button(button_frame, text="Start Recording", command=start_recording)
@@ -384,10 +410,10 @@ root.protocol("WM_DELETE_WINDOW", on_closing)
 threading.Thread(target=logitech_camera_thread, daemon=True).start()
 threading.Thread(target=orbbec_camera_thread, daemon=True).start()
 
+print("Starting Tkinter main loop...")
 root.mainloop()
+print("Tkinter main loop exited.")
 
 # Cleanly release resources on exit (optional, as daemon threads will exit)
-if logitech_cam and logitech_cam.isOpened():
-    logitech_cam.release()
-if orbbec_pipeline:
-    orbbec_pipeline.stop()
+# These are mostly handled by the finally blocks in the threads now.
+# The main process will exit when root.mainloop() finishes and all daemon threads are done.
