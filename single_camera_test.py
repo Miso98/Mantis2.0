@@ -20,7 +20,7 @@ def main():
         pipeline = Pipeline(device)
         config = Config()
 
-        # Try to get the color stream profile
+        # get the color stream profile
         profile_list = pipeline.get_stream_profile_list(OBSensorType.COLOR_SENSOR)
         color_profile = profile_list.get_default_video_stream_profile()
         config.enable_stream(color_profile)
