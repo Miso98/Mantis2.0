@@ -12,7 +12,7 @@ from functools import partial
 import subprocess
 import re
 
-# Load configuration
+# Load config
 with open('/home/kaliber/multi-cam-stream/multi_device_sync_config.json', 'r') as f:
     config = json.load(f)
 
@@ -28,7 +28,7 @@ stop_event = threading.Event()
 logitech_cam = None
 orbbec_pipeline = None
 
-# --- Utility Functions (adapted from pyorbbecsdk examples) ---
+#  functions (adapted from pyorbbecsdk examples)
 def frame_to_bgr_image(frame):
     if frame is None:
         return None
@@ -56,7 +56,7 @@ def frame_to_bgr_image(frame):
         image = cv2.imdecode(data, cv2.IMREAD_COLOR)
         return image
     else:
-        # Fallback for other formats, might need more specific handling
+        # Fallback for other formats
         print(f"Unsupported frame format in frame_to_bgr_image: {frame_format}")
         return None
 
@@ -115,8 +115,7 @@ def find_logitech_camera_index():
         result = subprocess.run(['v4l2-ctl', '--list-devices'], capture_output=True, text=True, check=True)
         output = result.stdout
         
-        # Regex to find the Logitech camera and its associated video devices
-        # We are looking for "UVC Camera (046d:0825)" followed by device paths
+        # find logitech
         logitech_pattern = r"UVC Camera \(046d:0825\).*?(?P<devices>(?:\\s+/dev/video\\d+\\n)*)"
         match = re.search(logitech_pattern, output, re.DOTALL)
         
@@ -130,10 +129,10 @@ def find_logitech_camera_index():
         print(f"Error running v4l2-ctl: {e}")
     return -1 # Return -1 if not found or error
 
-# --- GUI Setup ---
+#GUI
 root = tk.Tk()
 root.title("Multi-camera Recorder")
-root.geometry("1920x1080") # Increased size for multiple previews
+root.geometry("1920x1080")
 
 main_frame = ttk.Frame(root)
 main_frame.grid(row=0, column=0, sticky="nsew")
@@ -162,7 +161,7 @@ orbbec_depth_frame.grid(row=1, column=1, padx=10, pady=10, sticky="nsew")
 orbbec_depth_label = ttk.Label(orbbec_depth_frame)
 orbbec_depth_label.pack()
 
-# Configure grid weights to make frames expand
+
 main_frame.grid_rowconfigure(0, weight=1)
 main_frame.grid_rowconfigure(1, weight=1)
 main_frame.grid_columnconfigure(0, weight=1)
@@ -175,7 +174,7 @@ root.grid_rowconfigure(0, weight=1)
 root.grid_columnconfigure(0, weight=1)
 root.grid_columnconfigure(1, weight=1)
 
-# --- Functions ---
+
 
 def update_label(label, imgtk):
     """Thread-safe way to update a Tkinter label with a new image."""
@@ -185,15 +184,15 @@ def update_label(label, imgtk):
 def start_recording():
     global is_recording, logitech_out, orbbec_rgb_out, orbbec_ir_out, orbbec_depth_out
     if not is_recording:
-        # Create recordings directory if it doesn't exist
+        # Create recordings directory 
         if not os.path.exists(recordings_dir):
             os.makedirs(recordings_dir)
 
-        # Setup Logitech recorder
+        #Logitech recorder
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
         logitech_out = cv2.VideoWriter(os.path.join(recordings_dir, 'logitech_output.avi'), fourcc, 30.0, (640, 480))
 
-        # Setup Orbbec recorders
+        #Orbbec recorders
         orbbec_rgb_out = cv2.VideoWriter(os.path.join(recordings_dir, 'orbbec_rgb_output.avi'), fourcc, 30.0, (640, 480))
         orbbec_ir_out = cv2.VideoWriter(os.path.join(recordings_dir, 'orbbec_ir_output.avi'), fourcc, 30.0, (640, 480), isColor=False) # IR is grayscale
         orbbec_depth_out = cv2.VideoWriter(os.path.join(recordings_dir, 'orbbec_depth_output.avi'), fourcc, 30.0, (640, 480), isColor=False) # Depth is grayscale
@@ -250,7 +249,7 @@ def logitech_camera_thread():
     while not stop_event.is_set():
         ret, frame = logitech_cam.read()
         if ret:
-            # Resize the frame once for both preview and recording
+            # Resize the frame for both preview and recording
             resized_frame = cv2.resize(frame, (640, 480))
 
             # Add timestamp
@@ -368,14 +367,14 @@ def on_closing():
     # Wait a moment for threads to see the stop event
     root.after(100, root.destroy)
 
-# --- Button Bindings ---
+# buttons
 start_button = ttk.Button(button_frame, text="Start Recording", command=start_recording)
 start_button.pack(side=tk.LEFT, padx=20)
 
 stop_button = ttk.Button(button_frame, text="Stop Recording", command=stop_recording, state=tk.DISABLED)
 stop_button.pack(side=tk.RIGHT, padx=20)
 
-# --- Main Loop ---
+# main
 root.protocol("WM_DELETE_WINDOW", on_closing)
 
 # Start camera threads for preview
@@ -384,7 +383,7 @@ threading.Thread(target=orbbec_camera_thread, daemon=True).start()
 
 root.mainloop()
 
-# Cleanly release resources on exit (optional, as daemon threads will exit)
+#release resources on exit 
 if logitech_cam and logitech_cam.isOpened():
     logitech_cam.release()
 if orbbec_pipeline:
