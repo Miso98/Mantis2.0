@@ -12,7 +12,7 @@ from functools import partial
 import subprocess
 import re
 
-# Load configuration
+# Load config
 with open('/home/kaliber/multi-cam-stream/multi_device_sync_config.json', 'r') as f:
     config = json.load(f)
 
@@ -28,7 +28,7 @@ stop_event = threading.Event()
 uvc_cam = None
 orbbec_pipeline = None
 
-# --- Utility Functions (adapted from pyorbbecsdk examples) ---
+#Functions adapted from pyorbbecsdk examples
 def frame_to_bgr_image(frame):
     if frame is None:
         return None
@@ -44,7 +44,7 @@ def frame_to_bgr_image(frame):
     elif frame_format == OBFormat.Y16:
         data.dtype = np.uint16
         data = data.reshape((height, width))
-        # Scale data to 8-bit for display
+        # Scale to 8-bit for display
         data = cv2.convertScaleAbs(data, alpha=0.05)
         image = cv2.cvtColor(data, cv2.COLOR_GRAY2BGR)
         return image
@@ -56,7 +56,7 @@ def frame_to_bgr_image(frame):
         image = cv2.imdecode(data, cv2.IMREAD_COLOR)
         return image
     else:
-        # Fallback for other formats, might need more specific handling
+        # Fallback for other formats
         print(f"Unsupported frame format in frame_to_bgr_image: {frame_format}")
         return None
 
@@ -112,7 +112,7 @@ def process_ir(ir_frame):
 
 
 
-# --- GUI Setup ---
+# GUI
 root = tk.Tk()
 root.title("Multi-camera Recorder")
 root.geometry("1920x1080") # Increased size for multiple previews
@@ -157,7 +157,7 @@ root.grid_rowconfigure(0, weight=1)
 root.grid_columnconfigure(0, weight=1)
 root.grid_columnconfigure(1, weight=1)
 
-# --- Functions ---
+# Functions
 
 def update_label(label, imgtk):
     """Thread-safe way to update a Tkinter label with a new image."""
@@ -167,7 +167,7 @@ def update_label(label, imgtk):
 def start_recording():
     global is_recording, uvc_out, orbbec_rgb_out, orbbec_ir_out, orbbec_depth_out
     if not is_recording:
-        # Create recordings directory if it doesn't exist
+        # Create recordings directory 
         if not os.path.exists(recordings_dir):
             os.makedirs(recordings_dir)
 
@@ -209,7 +209,7 @@ def uvc_camera_thread():
     global uvc_cam, uvc_out, is_recording
     found_camera = False
     
-    camera_index = 1 # Directly use /dev/video1
+    camera_index = 1 # Directly use /dev/video1 check here if not found
     indices_to_try = [camera_index]
 
     for i in indices_to_try:
@@ -347,7 +347,7 @@ def on_closing():
     # Wait a moment for threads to see the stop event
     root.after(100, root.destroy)
 
-# --- Button Bindings ---
+#buttons
 start_button = ttk.Button(button_frame, text="Start Recording", command=start_recording)
 start_button.pack(side=tk.LEFT, padx=20)
 
@@ -363,7 +363,7 @@ threading.Thread(target=orbbec_camera_thread, daemon=True).start()
 
 root.mainloop()
 
-# Cleanly release resources on exit (optional, as daemon threads will exit)
+# Cleanly release resources on exit 
 if uvc_cam and uvc_cam.isOpened():
     uvc_cam.release()
 if orbbec_pipeline:
